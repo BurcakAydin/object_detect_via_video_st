@@ -1,8 +1,8 @@
 import streamlit as st
 import cv2 as cv
 import numpy as np
-import tempfile
 from PIL import Image
+import tempfile
 
 # Load the cascades
 human_cascade = cv.CascadeClassifier(cv.data.haarcascades + 'haarcascade_fullbody.xml')
@@ -19,26 +19,32 @@ st.title("Human Detection in Video")
 
 uploaded_file = st.file_uploader("Choose a video...", type=["mp4", "avi", "mov"])
 if uploaded_file is not None:
-    tfile = tempfile.NamedTemporaryFile(delete=False) 
+    tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     tfile.write(uploaded_file.read())
     cap = cv.VideoCapture(tfile.name)
 
-    stframe = st.empty()
+    # Define the codec and create VideoWriter object
+    fourcc = cv.VideoWriter_fourcc(*'mp4v') 
+    out = cv.VideoWriter('output.mp4', fourcc, 20.0, (int(cap.get(3)), int(cap.get(4))))
 
     try:
-        while True:
+        while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
-                st.warning("Can't receive frame (stream end?). Exiting ...")
                 break
 
             # Detect humans
-            frame = detect_humans(frame)
+            processed_frame = detect_humans(frame)
 
-            # Convert frame to RGB and display in Streamlit
-            frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            stframe.image(frame, channels="RGB", use_column_width=True)
+            # Write the frame into the file 'output.mp4'
+            out.write(processed_frame)
+
     except Exception as e:
         st.error(f"An error occurred: {e}")
     finally:
         cap.release()
+        out.release()
+        
+    # Display download link for the processed video
+    with open('output.mp4', 'rb') as f:
+        st.download_button('Download Processed Video', f, file_name='processed_video.mp4')
